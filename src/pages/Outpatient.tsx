@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Minus, Calculator, Trash2, FileText, Printer } from 'lucide-react';
+import { Search, Plus, Minus, Calculator, Trash2, FileText, Printer, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,21 +18,34 @@ interface BillItem extends MedicalItem {
   quantity: number;
 }
 
+// Original categories from the GitHub project
 const OUTPATIENT_CATEGORIES = [
-  'Laboratory',
-  'X-Ray',
-  'Ultrasound',
-  'ECG/EEG',
-  'Consultation',
-  'Minor Procedures',
-  'Injections',
-  'Medications',
-  'Medical Supplies',
-  'Other Services'
+  { name: 'Registration Fees', interface: 'toggle' },
+  { name: 'Dr. Fees', interface: 'toggle' },
+  { name: 'Medic Fee', interface: 'toggle' },
+  { name: 'Laboratory', interface: 'search' },
+  { name: 'X-Ray', interface: 'search' },
+  { name: 'Medicine', interface: 'search' },
+  { name: 'Physical Therapy', interface: 'manual' },
+  { name: 'Limb and Brace', interface: 'manual' },
 ];
 
-// Sample medical items data
+// Sample medical items data with Taka pricing
 const SAMPLE_ITEMS: MedicalItem[] = [
+  // Registration Fees (toggle items)
+  { id: 'reg1', name: 'Registration Fee', price: 100, category: 'Registration Fees' },
+  { id: 'reg2', name: 'Emergency Registration', price: 200, category: 'Registration Fees' },
+  
+  // Dr. Fees (toggle items)
+  { id: 'dr1', name: 'Consultation Fee', price: 500, category: 'Dr. Fees' },
+  { id: 'dr2', name: 'Specialist Consultation', price: 800, category: 'Dr. Fees' },
+  { id: 'dr3', name: 'Follow-up Visit', price: 300, category: 'Dr. Fees' },
+  
+  // Medic Fee (toggle items)
+  { id: 'med1', name: 'Nursing Service', price: 200, category: 'Medic Fee' },
+  { id: 'med2', name: 'Dressing', price: 150, category: 'Medic Fee' },
+  { id: 'med3', name: 'Injection', price: 100, category: 'Medic Fee' },
+  
   // Laboratory
   { id: 'lab1', name: 'Complete Blood Count (CBC)', price: 350, category: 'Laboratory' },
   { id: 'lab2', name: 'Urinalysis', price: 150, category: 'Laboratory' },
@@ -42,6 +55,8 @@ const SAMPLE_ITEMS: MedicalItem[] = [
   { id: 'lab6', name: 'Kidney Function Test', price: 600, category: 'Laboratory' },
   { id: 'lab7', name: 'Thyroid Function Test', price: 750, category: 'Laboratory' },
   { id: 'lab8', name: 'Blood Sugar (FBS)', price: 200, category: 'Laboratory' },
+  { id: 'lab9', name: 'HbA1c', price: 450, category: 'Laboratory' },
+  { id: 'lab10', name: 'Serum Creatinine', price: 250, category: 'Laboratory' },
   
   // X-Ray
   { id: 'xray1', name: 'Chest X-Ray (PA)', price: 450, category: 'X-Ray' },
@@ -49,65 +64,44 @@ const SAMPLE_ITEMS: MedicalItem[] = [
   { id: 'xray3', name: 'Abdominal X-Ray', price: 500, category: 'X-Ray' },
   { id: 'xray4', name: 'Spine X-Ray', price: 550, category: 'X-Ray' },
   { id: 'xray5', name: 'Extremity X-Ray', price: 400, category: 'X-Ray' },
+  { id: 'xray6', name: 'Skull X-Ray', price: 500, category: 'X-Ray' },
+  { id: 'xray7', name: 'Pelvis X-Ray', price: 550, category: 'X-Ray' },
   
-  // Ultrasound
-  { id: 'us1', name: 'Abdominal Ultrasound', price: 1200, category: 'Ultrasound' },
-  { id: 'us2', name: 'Pelvic Ultrasound', price: 1000, category: 'Ultrasound' },
-  { id: 'us3', name: 'Thyroid Ultrasound', price: 900, category: 'Ultrasound' },
-  { id: 'us4', name: 'Breast Ultrasound', price: 1100, category: 'Ultrasound' },
+  // Medicine
+  { id: 'medicine1', name: 'Paracetamol 500mg', price: 5, category: 'Medicine' },
+  { id: 'medicine2', name: 'Amoxicillin 500mg', price: 15, category: 'Medicine' },
+  { id: 'medicine3', name: 'Omeprazole 20mg', price: 12, category: 'Medicine' },
+  { id: 'medicine4', name: 'Metformin 500mg', price: 8, category: 'Medicine' },
+  { id: 'medicine5', name: 'Ciprofloxacin 500mg', price: 18, category: 'Medicine' },
+  { id: 'medicine6', name: 'Metronidazole 400mg', price: 10, category: 'Medicine' },
+  { id: 'medicine7', name: 'Pantoprazole 40mg', price: 15, category: 'Medicine' },
+  { id: 'medicine8', name: 'Azithromycin 500mg', price: 25, category: 'Medicine' },
   
-  // ECG/EEG
-  { id: 'ecg1', name: 'ECG (12 Lead)', price: 400, category: 'ECG/EEG' },
-  { id: 'ecg2', name: 'Holter Monitor (24hr)', price: 2500, category: 'ECG/EEG' },
-  { id: 'eeg1', name: 'EEG', price: 1800, category: 'ECG/EEG' },
+  // Physical Therapy
+  { id: 'pt1', name: 'Physiotherapy Session', price: 500, category: 'Physical Therapy' },
+  { id: 'pt2', name: 'Ultrasound Therapy', price: 300, category: 'Physical Therapy' },
+  { id: 'pt3', name: 'TENS', price: 250, category: 'Physical Therapy' },
   
-  // Consultation
-  { id: 'con1', name: 'General Consultation', price: 500, category: 'Consultation' },
-  { id: 'con2', name: 'Specialist Consultation', price: 800, category: 'Consultation' },
-  { id: 'con3', name: 'Emergency Consultation', price: 1000, category: 'Consultation' },
-  
-  // Minor Procedures
-  { id: 'proc1', name: 'Wound Dressing', price: 300, category: 'Minor Procedures' },
-  { id: 'proc2', name: 'Suturing (Simple)', price: 500, category: 'Minor Procedures' },
-  { id: 'proc3', name: 'Suturing (Complex)', price: 1000, category: 'Minor Procedures' },
-  { id: 'proc4', name: 'Incision & Drainage', price: 800, category: 'Minor Procedures' },
-  { id: 'proc5', name: 'Nebulization', price: 200, category: 'Minor Procedures' },
-  
-  // Injections
-  { id: 'inj1', name: 'IV Injection', price: 150, category: 'Injections' },
-  { id: 'inj2', name: 'IM Injection', price: 100, category: 'Injections' },
-  { id: 'inj3', name: 'IV Fluid Administration', price: 350, category: 'Injections' },
-  
-  // Medications
-  { id: 'med1', name: 'Paracetamol 500mg', price: 5, category: 'Medications' },
-  { id: 'med2', name: 'Amoxicillin 500mg', price: 15, category: 'Medications' },
-  { id: 'med3', name: 'Omeprazole 20mg', price: 12, category: 'Medications' },
-  { id: 'med4', name: 'Metformin 500mg', price: 8, category: 'Medications' },
-  
-  // Medical Supplies
-  { id: 'sup1', name: 'Surgical Gloves (pair)', price: 25, category: 'Medical Supplies' },
-  { id: 'sup2', name: 'Syringe 5ml', price: 15, category: 'Medical Supplies' },
-  { id: 'sup3', name: 'Gauze Pad', price: 10, category: 'Medical Supplies' },
-  { id: 'sup4', name: 'Bandage Roll', price: 30, category: 'Medical Supplies' },
-  
-  // Other Services
-  { id: 'oth1', name: 'Medical Certificate', price: 200, category: 'Other Services' },
-  { id: 'oth2', name: 'Fit to Work Certificate', price: 300, category: 'Other Services' },
-  { id: 'oth3', name: 'Medical Abstract', price: 250, category: 'Other Services' },
+  // Limb and Brace
+  { id: 'lb1', name: 'Knee Brace', price: 1500, category: 'Limb and Brace' },
+  { id: 'lb2', name: 'Ankle Support', price: 800, category: 'Limb and Brace' },
+  { id: 'lb3', name: 'Cervical Collar', price: 600, category: 'Limb and Brace' },
+  { id: 'lb4', name: 'Arm Sling', price: 400, category: 'Limb and Brace' },
 ];
 
 const Outpatient = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [billItems, setBillItems] = useState<BillItem[]>([]);
+  const [manualServiceName, setManualServiceName] = useState('');
+  const [manualServicePrice, setManualServicePrice] = useState('');
 
+  // Format as Taka (BDT)
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      minimumFractionDigits: 2,
-    }).format(amount);
+    return `৳${amount.toLocaleString('en-BD')}`;
   };
+
+  const currentCategoryConfig = OUTPATIENT_CATEGORIES.find(c => c.name === selectedCategory);
 
   const filteredItems = useMemo(() => {
     return SAMPLE_ITEMS.filter(item => {
@@ -133,6 +127,23 @@ const Outpatient = () => {
     }
   };
 
+  const toggleBillItem = (item: MedicalItem) => {
+    const existingItem = billItems.find(bi => bi.id === item.id);
+    if (existingItem) {
+      setBillItems(billItems.filter(bi => bi.id !== item.id));
+    } else {
+      setBillItems([...billItems, { 
+        ...item, 
+        billId: `${item.id}-${Date.now()}`,
+        quantity: 1 
+      }]);
+    }
+  };
+
+  const isItemInBill = (itemId: string) => {
+    return billItems.some(bi => bi.id === itemId);
+  };
+
   const updateQuantity = (billId: string, delta: number) => {
     setBillItems(billItems.map(item => {
       if (item.billId === billId) {
@@ -151,6 +162,22 @@ const Outpatient = () => {
     setBillItems([]);
   };
 
+  const addManualEntry = () => {
+    if (manualServiceName && manualServicePrice && selectedCategory) {
+      const newItem: BillItem = {
+        id: `manual-${Date.now()}`,
+        billId: `manual-${Date.now()}`,
+        name: manualServiceName,
+        price: parseFloat(manualServicePrice),
+        category: selectedCategory,
+        quantity: 1
+      };
+      setBillItems([...billItems, newItem]);
+      setManualServiceName('');
+      setManualServicePrice('');
+    }
+  };
+
   const totalAmount = useMemo(() => {
     return billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }, [billItems]);
@@ -166,65 +193,112 @@ const Outpatient = () => {
     return grouped;
   }, [billItems]);
 
-  return (
-    <Layout>
-      <div className="min-h-screen bg-background py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Outpatient Calculator</h1>
-            <p className="text-muted-foreground">
-              Calculate bills for outpatient services including laboratory, diagnostics, and procedures.
-            </p>
-          </div>
+  const renderCategoryInterface = () => {
+    if (!selectedCategory) {
+      return (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {filteredItems.map(item => (
+            <Card 
+              key={item.id} 
+              className="medicine-item-card cursor-pointer hover:scale-[1.02] transition-transform"
+              onClick={() => addToBill(item)}
+            >
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-foreground text-sm">{item.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">{item.category}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-primary">{formatCurrency(item.price)}</p>
+                    <Button size="sm" variant="ghost" className="mt-1 h-7 px-2">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
 
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Left Panel - Item Selection */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Search and Filter */}
-              <Card className="glass-card">
-                <CardContent className="pt-6">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search items..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 bg-input border-border"
-                      />
+    if (currentCategoryConfig?.interface === 'toggle') {
+      // Toggle interface - click to add/remove
+      return (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filteredItems.map(item => {
+            const isSelected = isItemInBill(item.id);
+            return (
+              <Card 
+                key={item.id} 
+                className={`cursor-pointer transition-all duration-200 ${
+                  isSelected 
+                    ? 'bg-primary/20 border-primary/50 ring-2 ring-primary/30' 
+                    : 'medicine-item-card hover:scale-[1.02]'
+                }`}
+                onClick={() => toggleBillItem(item)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-foreground text-sm">{item.name}</h3>
+                      <p className="font-semibold text-primary mt-1">{formatCurrency(item.price)}</p>
+                    </div>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      isSelected 
+                        ? 'bg-primary border-primary' 
+                        : 'border-muted-foreground/30'
+                    }`}>
+                      {isSelected && <Check className="h-4 w-4 text-primary-foreground" />}
                     </div>
                   </div>
                 </CardContent>
               </Card>
+            );
+          })}
+        </div>
+      );
+    }
 
-              {/* Category Pills */}
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant={selectedCategory === '' ? 'default' : 'outline'}
-                  className={`cursor-pointer category-pill px-3 py-1.5 text-sm ${
-                    selectedCategory === '' ? 'active bg-primary text-primary-foreground' : 'hover:bg-secondary'
-                  }`}
-                  onClick={() => setSelectedCategory('')}
+    if (currentCategoryConfig?.interface === 'manual') {
+      // Manual entry interface
+      return (
+        <div className="space-y-4">
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <h3 className="font-medium text-foreground mb-4">Add Custom Entry</h3>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Service name..."
+                  value={manualServiceName}
+                  onChange={(e) => setManualServiceName(e.target.value)}
+                  className="bg-input border-border"
+                />
+                <Input
+                  type="number"
+                  placeholder="Price in Taka..."
+                  value={manualServicePrice}
+                  onChange={(e) => setManualServicePrice(e.target.value)}
+                  className="bg-input border-border"
+                />
+                <Button 
+                  variant="medical" 
+                  className="w-full"
+                  onClick={addManualEntry}
+                  disabled={!manualServiceName || !manualServicePrice}
                 >
-                  All Categories
-                </Badge>
-                {OUTPATIENT_CATEGORIES.map(category => (
-                  <Badge
-                    key={category}
-                    variant={selectedCategory === category ? 'default' : 'outline'}
-                    className={`cursor-pointer category-pill px-3 py-1.5 text-sm ${
-                      selectedCategory === category ? 'active bg-primary text-primary-foreground' : 'hover:bg-secondary'
-                    }`}
-                    onClick={() => setSelectedCategory(category)}
-                  >
-                    {category}
-                  </Badge>
-                ))
-                }
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add to Bill
+                </Button>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Items Grid */}
+          {/* Show preset items if any */}
+          {filteredItems.length > 0 && (
+            <>
+              <h4 className="text-sm font-medium text-muted-foreground">Or select from presets:</h4>
               <div className="grid sm:grid-cols-2 gap-3">
                 {filteredItems.map(item => (
                   <Card 
@@ -236,7 +310,6 @@ const Outpatient = () => {
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h3 className="font-medium text-foreground text-sm">{item.name}</h3>
-                          <p className="text-xs text-muted-foreground mt-1">{item.category}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-primary">{formatCurrency(item.price)}</p>
@@ -247,15 +320,107 @@ const Outpatient = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))
-                }
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // Default search interface (Laboratory, X-Ray, Medicine)
+    return (
+      <div className="grid sm:grid-cols-2 gap-3">
+        {filteredItems.map(item => (
+          <Card 
+            key={item.id} 
+            className="medicine-item-card cursor-pointer hover:scale-[1.02] transition-transform"
+            onClick={() => addToBill(item)}
+          >
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h3 className="font-medium text-foreground text-sm">{item.name}</h3>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-primary">{formatCurrency(item.price)}</p>
+                  <Button size="sm" variant="ghost" className="mt-1 h-7 px-2">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <Layout>
+      <div className="min-h-screen bg-background py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Page Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Outpatient Calculator</h1>
+            <p className="text-muted-foreground text-sm">
+              Calculate bills for outpatient services
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Left Panel - Item Selection */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Category Pills */}
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={selectedCategory === '' ? 'default' : 'outline'}
+                  className={`cursor-pointer category-pill px-3 py-1.5 text-sm ${
+                    selectedCategory === '' ? 'active bg-primary text-primary-foreground' : 'hover:bg-secondary'
+                  }`}
+                  onClick={() => setSelectedCategory('')}
+                >
+                  All
+                </Badge>
+                {OUTPATIENT_CATEGORIES.map(category => (
+                  <Badge
+                    key={category.name}
+                    variant={selectedCategory === category.name ? 'default' : 'outline'}
+                    className={`cursor-pointer category-pill px-3 py-1.5 text-sm ${
+                      selectedCategory === category.name ? 'active bg-primary text-primary-foreground' : 'hover:bg-secondary'
+                    }`}
+                    onClick={() => setSelectedCategory(category.name)}
+                  >
+                    {category.name}
+                  </Badge>
+                ))}
               </div>
 
-              {filteredItems.length === 0 && (
+              {/* Search (only for search interface categories or all) */}
+              {(!currentCategoryConfig || currentCategoryConfig.interface === 'search') && (
+                <Card className="glass-card">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search items..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 bg-input border-border"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Category-specific interface */}
+              {renderCategoryInterface()}
+
+              {filteredItems.length === 0 && !currentCategoryConfig?.interface?.includes('manual') && (
                 <Card className="glass-card">
                   <CardContent className="py-12 text-center">
                     <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No items found matching your criteria</p>
+                    <p className="text-muted-foreground">No items found</p>
                   </CardContent>
                 </Card>
               )}
@@ -264,9 +429,9 @@ const Outpatient = () => {
             {/* Right Panel - Bill Summary */}
             <div className="lg:col-span-1">
               <Card className="glass-card sticky top-32">
-                <CardHeader className="border-b border-border">
+                <CardHeader className="border-b border-border py-4">
                   <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-lg">
                       <Calculator className="h-5 w-5 text-primary" />
                       Bill Summary
                     </CardTitle>
@@ -329,12 +494,10 @@ const Outpatient = () => {
                                   </Button>
                                 </div>
                               </div>
-                            ))
-                            }
+                            ))}
                           </div>
                         </div>
-                      ))
-                      }
+                      ))}
 
                       {/* Total */}
                       <div className="border-t border-border pt-4 mt-4">
